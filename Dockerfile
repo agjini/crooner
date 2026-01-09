@@ -25,8 +25,8 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /app/target/release/crooner /usr/local/bin/crooner
 
-# Create directory for backups
-RUN mkdir -p /backups
+# Create directory for backup
+RUN mkdir -p /backup
 
 # Copy default config (will be overridden by volume mount)
 COPY config.toml /app/config.toml
@@ -34,7 +34,7 @@ COPY config.toml /app/config.toml
 # Create non-root user and docker group
 RUN groupadd -g 999 docker && \
     useradd -m -u 1000 -G docker crooner && \
-    chown -R crooner:crooner /app /backups
+    chown -R crooner:crooner /app /backup
 
 # Copy and setup entrypoint
 COPY entrypoint.sh /entrypoint.sh
