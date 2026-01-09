@@ -1,0 +1,17 @@
+# Example: Backup PostgreSQL database every day at 2:00 AM
+# Also runs immediately on startup to ensure we have a fresh backup
+[[jobs]]
+name = "PostgreSQL Backup"
+at = "* * * * * *"
+container = "my-postgres-container"
+command = ["pg_dump", "-U", "postgres", "mydb"]
+output_file = "/backups/postgres_backup.sql"
+run_on_startup = true
+
+# Example: Backup MySQL database every day at 3:00 AM
+[[jobs]]
+name = "MySQL Backup"
+at = "* * * * * *"
+container = "my-mysql-container"
+command = ["mysqldump", "-u", "root", "mydb"]
+output_file = "/backups/mysql_backup.sql"

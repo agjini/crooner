@@ -1,0 +1,15 @@
+[package]
+name = "crooner"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0"
+cron_tab = { version = "0.2", features = ["async"] }
+tokio = { version = "1" , features = ["signal", "rt-multi-thread", "macros", "fs"]}
+serde = { version = "1", features = ["derive"] }
+toml = "0"
+bollard = "0"
+futures-util = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

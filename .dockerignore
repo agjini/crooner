@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+.idea/
+*.md
+example.toml
+Dockerfile
+.dockerignore
