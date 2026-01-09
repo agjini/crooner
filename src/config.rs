@@ -1,29 +1,34 @@
-use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::Docker;
+use bollard::container::LogOutput;
+use bollard::exec::{CreateExecOptions, StartExecResults};
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
 use std::error::Error;
 use std::sync::Arc;
+use tokio::fs::write;
 use tracing::{info, warn};
+
+pub type Result = std::result::Result<(), Box<dyn Error>>;
 
 #[derive(Deserialize, Clone)]
 pub struct CronJob {
-    pub(crate) name: String,
-    pub(crate) at: String,
-    container: String,
-    command: Vec<String>,
+    pub name: String,
+    pub at: String,
+    pub container: String,
+    pub command: Vec<String>,
     #[serde(default)]
-    output_file: Option<String>,
+    pub output_file: Option<String>,
     #[serde(default)]
-    pub(crate) run_on_startup: bool,
+    pub run_on_startup: bool,
 }
 
 impl CronJob {
-    pub(crate) async fn exec(&self, docker: Arc<Docker>) -> Result<(), Box<dyn Error>> {
+    pub async fn exec(&self, docker: Arc<Docker>) -> Result {
         info!(
+            job = %self.name,
             container = %self.container,
             command = ?self.command,
-            "Executing job in container"
+            "Executing job in container",
         );
 
         let exec = docker
@@ -41,32 +46,31 @@ impl CronJob {
         if let StartExecResults::Attached { mut output, .. } =
             docker.start_exec(&exec.id, None).await?
         {
-            let mut stdout_data = Vec::new();
-            let mut stderr_data = Vec::new();
+            let mut stdout = Vec::new();
+            let mut stderr = Vec::new();
 
             while let Some(Ok(msg)) = output.next().await {
                 match msg {
-                    bollard::container::LogOutput::StdOut { message } => {
-                        stdout_data.extend_from_slice(&message);
-                        print!("{}", String::from_utf8_lossy(&message));
+                    LogOutput::StdOut { message } => {
+                        stdout.extend_from_slice(&message);
                     }
-                    bollard::container::LogOutput::StdErr { message } => {
-                        stderr_data.extend_from_slice(&message);
-                        eprint!("{}", String::from_utf8_lossy(&message));
+                    LogOutput::StdErr { message } => {
+                        stderr.extend_from_slice(&message);
+                        warn!(job = %self.name, "{}", String::from_utf8_lossy(&message));
                     }
                     _ => {}
                 }
             }
 
             if let Some(output_path) = &self.output_file {
-                tokio::fs::write(output_path, &stdout_data).await?;
-                info!(path = %output_path, "Output saved to file");
+                write(output_path, &stdout).await?;
+                info!(job = %self.name, path = %output_path, "Output saved to file");
             }
 
-            if !stderr_data.is_empty() {
-                warn!("Command completed with errors");
+            if !stderr.is_empty() {
+                warn!(job = %self.name, "Command completed with errors");
             } else {
-                info!("Command completed successfully");
+                info!(job = %self.name, "Command completed successfully");
             }
         }
 
@@ -76,5 +80,5 @@ impl CronJob {
 
 #[derive(Deserialize)]
 pub struct Config {
-    pub(crate) jobs: Vec<CronJob>,
+    pub jobs: Vec<CronJob>,
 }

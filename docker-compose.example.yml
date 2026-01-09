@@ -1,12 +1,10 @@
-version: "3.8"
-
 services:
   crooner:
-    image: agjini/crooner:0.1.0
+    build: .
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config.toml:/app/config.toml:ro
-      - ./backups:/backups
+      - ./backup:/backup
     restart: unless-stopped
     depends_on:
       - postgres
@@ -19,8 +17,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydb
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
 
   mysql:
@@ -29,10 +25,4 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: mysecretpassword
       MYSQL_DATABASE: mydb
-    volumes:
-      - mysql_data:/var/lib/mysql
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-  mysql_data:

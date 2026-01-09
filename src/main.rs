@@ -1,9 +1,8 @@
-use crate::config::Config;
+use crate::config::{Config, Result};
 use bollard::Docker;
 use chrono::Utc;
 use cron_tab::AsyncCron;
 use signal::unix::SignalKind;
-use std::error::Error;
 use std::fs;
 use std::sync::Arc;
 use tokio::signal;
@@ -13,7 +12,7 @@ use tracing_subscriber::EnvFilter;
 mod config;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main() -> Result {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
         .init();
@@ -45,11 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn schedule_jobs(
-    cron: &mut AsyncCron<Utc>,
-    docker: &Arc<Docker>,
-    config: Config,
-) -> Result<(), Box<dyn Error>> {
+async fn schedule_jobs(cron: &mut AsyncCron<Utc>, docker: &Arc<Docker>, config: Config) -> Result {
     for job in config.jobs {
         let at = job.at.clone();
         let docker = Arc::clone(docker);
@@ -97,7 +92,7 @@ async fn run_at_startup(docker: &Arc<Docker>, config: &Config) {
     }
 }
 
-async fn register_shutdown_hooks() -> Result<(), Box<dyn Error>> {
+async fn register_shutdown_hooks() -> Result {
     let mut sigint = signal::unix::signal(SignalKind::interrupt())?;
     let mut sigterm = signal::unix::signal(SignalKind::terminate())?;
     tokio::select! {
