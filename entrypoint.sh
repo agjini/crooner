@@ -31,10 +31,10 @@ else
     exit 1
 fi
 
-# Ensure backups directory is writable by crooner user
-if [ -d /backups ]; then
-    chown -R crooner:crooner /backups
-    echo "Set permissions for /backups directory"
+# Ensure backup directory is writable by crooner user
+if [ -d /backup ]; then
+    chown -R crooner:crooner /backup
+    echo "Set permissions for /backup directory"
 fi
 
 # Switch to crooner user and execute the command
