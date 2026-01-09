@@ -2,7 +2,8 @@
 
 ![crooner](crooner.png)
 
-A lightweight Docker-native cron scheduler written in Rust. Execute commands in other containers on schedule.
+A small utility written in Rust that allows scheduling Docker commands to be executed on containers (typically to
+perform database dumps within a Docker Compose setup).
 
 ## Features
 
@@ -13,7 +14,26 @@ A lightweight Docker-native cron scheduler written in Rust. Execute commands in 
 - Structured logging with tracing
 - Secure non-root execution
 
+### To run the example inside the repository
+
+```bash
+docker-compose -f docker-compose.example.yml up --build
+```
+
 ## Quick Start
+
+### Docker Compose example
+
+```yaml
+services:
+  crooner:
+    image: agjini/crooner:0.1.0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.toml:/app/config.toml:ro
+      - ./backups:/backups
+    restart: unless-stopped
+```
 
 ### Configuration
 
@@ -27,30 +47,10 @@ container = "postgres-container"
 command = ["pg_dump", "-U", "postgres", "mydb"]
 output_file = "/backups/postgres_backup.sql"
 run_on_startup = true
+
+# You can define as many jobs as you want by repeating [[jobs]]
+
 ```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-
-services:
-  crooner:
-    build: .
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.toml:/app/config.toml:ro
-      - ./backups:/backups
-    restart: unless-stopped
-```
-
-### Run
-
-```bash
-docker-compose up -d
-```
-
-## Configuration
 
 ### Job Fields
 
@@ -58,7 +58,7 @@ docker-compose up -d
 - `at`: Cron expression (format: `second minute hour day month weekday`)
 - `container`: Target container name (string)
 - `command`: Command to execute (array of strings)
-- `output_file`: Optional output file path (string)
+- `output_file`: Optional output file path to write the output of the command (string)
 - `run_on_startup`: Execute immediately on startup (boolean, default: false)
 
 ### Cron Expression Format
