@@ -1,4 +1,4 @@
-use crate::error::Result;
+use crate::error::{AppError, Result};
 use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
 use bollard::Docker;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::fs::write;
 use tokio::time::sleep;
-use tracing::{error, info, warn};
+use tracing::{error, event, info, warn, Level};
 
 #[derive(Deserialize, Clone)]
 pub struct CronJob {
@@ -91,10 +91,23 @@ impl CronJob {
                     }
                     LogOutput::StdErr { message } => {
                         stderr.extend_from_slice(&message);
-                        warn!(job = %self.name, "{}", String::from_utf8_lossy(&message));
                     }
                     _ => {}
                 }
+            }
+
+            let inspect = docker.inspect_exec(&exec.id).await?;
+
+            if let Some(exit_code) = inspect.exit_code
+                && exit_code != 0
+            {
+                for line in String::from_utf8_lossy(&stderr).lines() {
+                    event!(Level::ERROR, job = %self.name, "{}", line);
+                }
+                return Err(AppError::Docker(format!(
+                    "Command failed with exit code {}",
+                    exit_code
+                )));
             }
 
             if let Some(output_path) = &self.output_file {
@@ -103,7 +116,10 @@ impl CronJob {
             }
 
             if !stderr.is_empty() {
-                warn!(job = %self.name, "Command completed with errors");
+                for line in String::from_utf8_lossy(&stderr).lines() {
+                    event!(Level::WARN, job = %self.name, "{}", line);
+                }
+                warn!(job = %self.name, "Command completed with warnings");
             } else {
                 info!(job = %self.name, "Command completed successfully");
             }

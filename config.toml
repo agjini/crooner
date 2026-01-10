@@ -4,7 +4,6 @@ at = "* * * * * *" # Every seconds for testing
 container = "my-postgres-container"
 command = ["pg_dump", "-U", "postgres", "mydb"]
 output_file = "/backup/postgres.sql"
-run_on_startup = true # Also runs immediately on startup to ensure we have a fresh backup
 
 [[jobs]]
 name = "mysql"
@@ -12,3 +11,4 @@ at = "* * * * * *" # Every seconds for testing
 container = "my-mysql-container"
 command = ["mysqldump", "-u", "root", "-pmysecretpassword", "mydb"]
 output_file = "/backup/mysql.sql"
+run_on_startup = true # Also runs immediately on startup to ensure we have a fresh backup

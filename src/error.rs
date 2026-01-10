@@ -4,6 +4,7 @@ use std::fmt::{Display, Formatter};
 pub type Result<T> = std::result::Result<T, AppError>;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum AppError {
     Docker(String),
     Io(String),
@@ -13,10 +14,7 @@ pub enum AppError {
 
 impl Display for AppError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let reason = match self {
-            AppError::Docker(s) | AppError::Io(s) | AppError::Toml(s) | AppError::Cron(s) => s,
-        };
-        f.write_fmt(format_args!("{:?} reason : {}", self, reason))
+        f.write_fmt(format_args!("{:?}", self))
     }
 }
 
