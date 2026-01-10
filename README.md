@@ -31,7 +31,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config.toml:/app/config.toml:ro
-      - ./backups:/backups
+      - ./backup:/backup
     restart: unless-stopped
 ```
 
@@ -45,7 +45,7 @@ name = "PostgreSQL Backup"
 at = "0 0 2 * * *"  # Every day at 2:00 AM
 container = "postgres-container"
 command = ["pg_dump", "-U", "postgres", "mydb"]
-output_file = "/backups/postgres_backup.sql"
+output_file = "/backup/postgres_backup.sql"
 run_on_startup = true
 
 # You can define as many jobs as you want by repeating [[jobs]]
