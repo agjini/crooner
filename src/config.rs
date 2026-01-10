@@ -1,14 +1,14 @@
-use bollard::Docker;
+use crate::error::Result;
 use bollard::container::LogOutput;
 use bollard::exec::{CreateExecOptions, StartExecResults};
+use bollard::Docker;
 use futures_util::stream::StreamExt;
 use serde::Deserialize;
-use std::error::Error;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::fs::write;
-use tracing::{info, warn};
-
-pub type Result = std::result::Result<(), Box<dyn Error>>;
+use tokio::time::sleep;
+use tracing::{error, info, warn};
 
 #[derive(Deserialize, Clone)]
 pub struct CronJob {
@@ -22,8 +22,43 @@ pub struct CronJob {
     pub run_on_startup: bool,
 }
 
+const MAX_RETRIES: u32 = 5;
+const RETRY_DELAY_MS: Duration = Duration::from_secs(2);
+
 impl CronJob {
-    pub async fn exec(&self, docker: Arc<Docker>) -> Result {
+    pub async fn exec_and_retry(&self, docker: &Arc<Docker>) {
+        let mut retry_count = 0;
+
+        while let Err(e) = self.try_exec(docker).await {
+            error!(
+                job = %self.name,
+                error = %e,
+                "Error executing job"
+            );
+            retry_count += 1;
+            if retry_count == MAX_RETRIES {
+                error!(
+                    job = %self.name,
+                    "Fails executing job after {} retries",
+                        MAX_RETRIES
+                );
+                break;
+            }
+            sleep(RETRY_DELAY_MS).await;
+        }
+    }
+
+    pub async fn exec(&self, docker: &Arc<Docker>) {
+        if let Err(e) = self.try_exec(docker).await {
+            error!(
+                job = %self.name,
+                error = %e,
+                "Error executing job"
+            );
+        }
+    }
+
+    pub async fn try_exec(&self, docker: &Docker) -> Result<()> {
         info!(
             job = %self.name,
             container = %self.container,

@@ -1,23 +1,23 @@
-use crate::config::{Config, Result};
+use crate::config::Config;
+use crate::error::Result;
 use bollard::Docker;
 use chrono::Utc;
 use cron_tab::AsyncCron;
-use signal::unix::SignalKind;
+use signal::unix::{signal, SignalKind};
 use std::fs;
 use std::sync::Arc;
 use tokio::signal;
-use tracing::{error, info};
+use tracing::{info, Level};
 use tracing_subscriber::EnvFilter;
 
 mod config;
+mod error;
 
 #[tokio::main]
-async fn main() -> Result {
+async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
+        .with_env_filter(EnvFilter::from_default_env().add_directive(Level::INFO.into()))
         .init();
-
-    let mut cron = AsyncCron::new(Utc);
 
     let docker = Arc::new(Docker::connect_with_local_defaults()?);
     info!("Connected to Docker");
@@ -28,6 +28,8 @@ async fn main() -> Result {
     info!(count = config.jobs.len(), "Loaded jobs");
 
     run_at_startup(&docker, &config).await;
+
+    let mut cron = AsyncCron::new(Utc);
 
     schedule_jobs(&mut cron, &docker, config).await?;
 
@@ -44,7 +46,11 @@ async fn main() -> Result {
     Ok(())
 }
 
-async fn schedule_jobs(cron: &mut AsyncCron<Utc>, docker: &Arc<Docker>, config: Config) -> Result {
+async fn schedule_jobs(
+    cron: &mut AsyncCron<Utc>,
+    docker: &Arc<Docker>,
+    config: Config,
+) -> Result<()> {
     for job in config.jobs {
         let at = job.at.clone();
         let docker = Arc::clone(docker);
@@ -55,13 +61,7 @@ async fn schedule_jobs(cron: &mut AsyncCron<Utc>, docker: &Arc<Docker>, config: 
             let job = job.clone();
             let docker = Arc::clone(&docker);
             async move {
-                if let Err(e) = job.exec(docker).await {
-                    error!(
-                        job = %job.name,
-                        error = %e,
-                        "Error executing job"
-                    );
-                }
+                job.exec(&docker).await;
             }
         })
         .await?;
@@ -70,31 +70,21 @@ async fn schedule_jobs(cron: &mut AsyncCron<Utc>, docker: &Arc<Docker>, config: 
 }
 
 async fn run_at_startup(docker: &Arc<Docker>, config: &Config) {
-    let startup_jobs: Vec<_> = config
-        .jobs
-        .iter()
-        .filter(|job| job.run_on_startup)
-        .collect();
+    let startup_jobs: Vec<_> = config.jobs.iter().filter(|j| j.run_on_startup).collect();
 
     if !startup_jobs.is_empty() {
         info!(count = startup_jobs.len(), "Running jobs on startup");
         for job in startup_jobs {
             info!(job = %job.name, "Running startup job");
-            if let Err(e) = job.exec(Arc::clone(docker)).await {
-                error!(
-                    job = %job.name,
-                    error = %e,
-                    "Error executing startup job"
-                );
-            }
+            job.exec_and_retry(&Arc::clone(docker)).await;
         }
         info!("Startup jobs completed");
     }
 }
 
-async fn register_shutdown_hooks() -> Result {
-    let mut sigint = signal::unix::signal(SignalKind::interrupt())?;
-    let mut sigterm = signal::unix::signal(SignalKind::terminate())?;
+async fn register_shutdown_hooks() -> Result<()> {
+    let mut sigint = signal(SignalKind::interrupt())?;
+    let mut sigterm = signal(SignalKind::terminate())?;
     tokio::select! {
         _ = sigint.recv() => {
             info!("Received SIGINT (Ctrl+C)");

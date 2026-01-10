@@ -1,12 +1,12 @@
 [package]
 name = "crooner"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 
 [dependencies]
 chrono = "0"
 cron_tab = { version = "0.2", features = ["async"] }
-tokio = { version = "1" , features = ["signal", "rt-multi-thread", "macros", "fs"]}
+tokio = { version = "1", features = ["signal", "rt-multi-thread", "macros", "fs"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0"
 bollard = "0"

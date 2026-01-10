@@ -27,7 +27,7 @@ docker-compose -f docker-compose.example.yml up --build
 ```yaml
 services:
   crooner:
-    image: agjini/crooner:0.1.2
+    image: agjini/crooner:0.1.3
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./config.toml:/app/config.toml:ro
